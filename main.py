@@ -1,4 +1,4 @@
-__version__ = "1.3.2"
+__version__ = "1.3.2-safe-icons"
 
 import csv
 import os
@@ -11,9 +11,12 @@ from kivy.clock import Clock
 from kivy.lang import Builder
 from kivy.metrics import dp
 from kivy.properties import StringProperty
-from kivy.graphics import Color, Line, Ellipse, Rectangle, Triangle
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.widget import Widget
+from kivy.uix.behaviors import ButtonBehavior
+from kivy.graphics import Color, Line, Rectangle
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.textinput import TextInput
@@ -85,70 +88,56 @@ class ThermalPrinterManager:
 # ==========================================
 # KIVY INTERFACE (KV LANGUAGE)
 # ==========================================
-class IconNavButton(Button):
-    """Android-safe navigation button using vector-drawn icons.
-
-    No Unicode/emoji/icon-font dependency is used. The icon is drawn with
-    Kivy canvas primitives, while the text label remains normal Latin text.
-    """
-    icon_type = StringProperty("")
+class ToolbarIcon(Widget):
+    """Dependency-free vector icon drawn with Kivy Canvas primitives."""
+    icon_type = StringProperty("home")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.background_normal = ""
-        self.background_down = ""
-        self.color = (0.15, 0.20, 0.30, 1)
-        self.font_size = "9sp"
-        self.bold = True
-        self.halign = "center"
-        self.valign = "bottom"
-        self.padding = (0, dp(3))
-        self.text_size = (self.width, self.height)
-        self.bind(pos=self._redraw_icon, size=self._redraw_icon,
-                  icon_type=self._redraw_icon, state=self._redraw_icon)
-        self._redraw_icon()
+        self.bind(pos=self._redraw, size=self._redraw, icon_type=self._redraw)
+        self._redraw()
 
-    def _redraw_icon(self, *args):
-        # Keep Button background untouched; draw only the icon in canvas.after.
-        self.canvas.after.clear()
-        with self.canvas.after:
-            Color(0.15, 0.20, 0.30, 1)
-            x, y = self.x, self.y
-            w, h = self.width, self.height
-            cx = x + w / 2.0
-            cy = y + h - dp(19)
-            r = dp(8)
+    def _redraw(self, *args):
+        self.canvas.clear()
+        x, y = self.pos
+        w, h = self.size
+        cx, cy = x + w / 2.0, y + h / 2.0
+        s = min(w, h) * 0.28
+        with self.canvas:
+            Color(0.12, 0.20, 0.32, 1)
             if self.icon_type == "home":
-                Line(points=[cx-r, cy, cx, cy+r, cx+r, cy], width=dp(1.5))
-                Line(rectangle=(cx-r*0.72, cy-r*0.05, r*1.44, r*0.95), width=dp(1.5))
-                Line(points=[cx-dp(1.5), cy-r*0.9, cx+dp(1.5), cy-r*0.9], width=dp(1.5))
-            elif self.icon_type == "pos":
-                Line(rounded_rectangle=(cx-r, cy-r, 2*r, 2*r), width=dp(1.5))
-                for dx, dy in [(-3,3),(3,3),(-3,-2),(3,-2)]:
-                    Line(circle=(cx+dp(dx), cy+dp(dy), dp(1)), width=dp(1.0))
-            elif self.icon_type == "products":
-                Line(points=[cx,cy+r, cx+r,cy+r/2, cx,cy, cx-r,cy+r/2, cx,cy+r], width=dp(1.5), close=True)
-                Line(points=[cx-r,cy+r/2, cx-r,cy-r/2, cx,cy-r, cx+r,cy-r/2, cx+r,cy+r/2], width=dp(1.5), close=True)
-                Line(points=[cx,cy, cx,cy-r], width=dp(1.5))
+                Line(points=[cx-s*1.25, cy, cx, cy+s, cx+s*1.25, cy], width=1.5)
+                Line(points=[cx-s, cy, cx-s, cy-s*0.9, cx+s, cy-s*0.9, cx+s, cy], width=1.5)
+            elif self.icon_type == "cashier":
+                Line(rectangle=(cx-s, cy-s*1.15, 2*s, 2*s*1.3), width=1.5)
+                Line(points=[cx-s*0.55, cy+s*0.35, cx+s*0.55, cy+s*0.35], width=1.5)
+                for dx, dy in [(-.45,-.35),(0,-.35),(.45,-.35),(-.45,-.72),(0,-.72),(.45,-.72)]:
+                    Rectangle(pos=(cx+dx*s-.10*s, cy+dy*s-.10*s), size=(.20*s,.20*s))
+            elif self.icon_type == "product":
+                Line(points=[cx-s, cy+s*0.45, cx, cy+s, cx+s, cy+s*0.45, cx, cy-s*0.05, cx-s, cy+s*0.45], width=1.5)
+                Line(points=[cx-s, cy+s*0.45, cx-s, cy-s*0.8, cx, cy-s*1.2, cx, cy-s*0.05], width=1.5)
+                Line(points=[cx+s, cy+s*0.45, cx+s, cy-s*0.8, cx, cy-s*1.2], width=1.5)
             elif self.icon_type == "history":
-                Line(circle=(cx, cy, r), width=dp(1.5))
-                Line(points=[cx,cy, cx,cy+r*0.55], width=dp(1.5))
-                Line(points=[cx,cy, cx+r*0.45,cy-r*0.15], width=dp(1.5))
-                Line(points=[cx-r-dp(2),cy, cx-r+dp(1),cy+dp(3)], width=dp(1.5))
-            elif self.icon_type == "reports":
-                Line(rounded_rectangle=(cx-r,cy-r,2*r,2*r), width=dp(1.5))
-                Line(points=[cx-dp(5),cy+dp(3),cx+dp(5),cy+dp(3)], width=dp(1.3))
-                Line(points=[cx-dp(5),cy, cx+dp(4),cy], width=dp(1.3))
-                Line(points=[cx-dp(5),cy-dp(3),cx+dp(2),cy-dp(3)], width=dp(1.3))
-            elif self.icon_type == "settings":
-                Line(circle=(cx, cy, r*0.55), width=dp(1.5))
-                Line(circle=(cx, cy, dp(2)), width=dp(1.2))
-                for i in range(8):
-                    import math
-                    a=math.radians(i*45)
-                    x1=cx+math.cos(a)*r*0.75; y1=cy+math.sin(a)*r*0.75
-                    x2=cx+math.cos(a)*r*1.05; y2=cy+math.sin(a)*r*1.05
-                    Line(points=[x1,y1,x2,y2], width=dp(1.5))
+                Line(circle=(cx, cy, s*1.15, 0, 360), width=1.5)
+                Line(points=[cx, cy, cx, cy+s*0.55, cx+s*0.45, cy+s*0.15], width=1.5)
+            elif self.icon_type == "report":
+                Line(rectangle=(cx-s*0.8, cy-s, s*1.6, s*2), width=1.5)
+                Line(points=[cx-s*0.45, cy+s*0.45, cx+s*0.45, cy+s*0.45], width=1.5)
+                Line(points=[cx-s*0.45, cy, cx+s*0.45, cy], width=1.5)
+                Line(points=[cx-s*0.45, cy-s*0.45, cx+s*0.25, cy-s*0.45], width=1.5)
+            else:
+                Line(circle=(cx, cy, s*0.48, 0, 360), width=1.5)
+                for dx, dy in [(0,1),(1,0),(0,-1),(-1,0),(.7,.7),(.7,-.7),(-.7,.7),(-.7,-.7)]:
+                    Line(points=[cx+dx*s*0.45, cy+dy*s*0.45, cx+dx*s*0.95, cy+dy*s*0.95], width=1.5)
+
+
+class IconNavButton(ButtonBehavior, BoxLayout):
+    icon_type = StringProperty("home")
+    label_text = StringProperty("")
+
+    def __init__(self, **kwargs):
+        super().__init__(orientation="vertical", spacing=0, padding=(0, 2), **kwargs)
+
 
 KV = """
 #:import dp kivy.metrics.dp
@@ -156,10 +145,34 @@ KV = """
 # --- Style Komponen Minimalis ---
 <IconNavButton>:
     size_hint_y: 1
-    background_normal: ""
-    background_down: ""
-    background_color: (0.98, 0.98, 0.99, 1) if self.state == "normal" else (0.90, 0.93, 0.98, 1)
+    padding: dp(0), dp(2)
+    spacing: dp(0)
+    canvas.before:
+        Color:
+            rgba: (0.98, 0.98, 0.99, 1) if self.state == "normal" else (0.90, 0.93, 0.98, 1)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+<IconLabel@Label>:
+    size_hint_y: None
+    height: dp(16)
+    font_size: "9sp"
+    bold: True
+    color: (.15, .20, .30, 1)
+    halign: "center"
+    valign: "middle"
     text_size: self.size
+
+<NavButton@Button>:
+    size_hint_y: 1
+    background_normal: ""
+    background_color: (0.98, 0.98, 0.99, 1) if self.state == 'normal' else (0.90, 0.93, 0.98, 1)
+    color: (.15, .20, .30, 1)
+    font_size: "11sp"
+    bold: True
+    halign: "center"
+    valign: "middle"
 
 <ModernTextInput@TextInput>:
     size_hint_y: None
@@ -663,28 +676,64 @@ KV = """
 
         IconNavButton:
             icon_type: "home"
-            text: "Dashboard"
+            label_text: "Dashboard"
             on_release: app.show_screen("dashboard")
+            ToolbarIcon:
+                icon_type: self.icon_type
+                size_hint_y: None
+                height: dp(28)
+            IconLabel:
+                text: "Dashboard"
         IconNavButton:
-            icon_type: "pos"
-            text: "Kasir"
+            icon_type: "cashier"
+            label_text: "Kasir"
             on_release: app.show_screen("pos")
+            ToolbarIcon:
+                icon_type: self.icon_type
+                size_hint_y: None
+                height: dp(28)
+            IconLabel:
+                text: "Kasir"
         IconNavButton:
-            icon_type: "products"
-            text: "Produk"
+            icon_type: "product"
+            label_text: "Produk"
             on_release: app.show_screen("products")
+            ToolbarIcon:
+                icon_type: self.icon_type
+                size_hint_y: None
+                height: dp(28)
+            IconLabel:
+                text: "Produk"
         IconNavButton:
             icon_type: "history"
-            text: "Riwayat"
+            label_text: "Riwayat"
             on_release: app.show_screen("history")
+            ToolbarIcon:
+                icon_type: self.icon_type
+                size_hint_y: None
+                height: dp(28)
+            IconLabel:
+                text: "Riwayat"
         IconNavButton:
-            icon_type: "reports"
-            text: "Laporan"
+            icon_type: "report"
+            label_text: "Laporan"
             on_release: app.show_screen("reports")
+            ToolbarIcon:
+                icon_type: self.icon_type
+                size_hint_y: None
+                height: dp(28)
+            IconLabel:
+                text: "Laporan"
         IconNavButton:
             icon_type: "settings"
-            text: "Pengaturan"
+            label_text: "Pengaturan"
             on_release: app.show_screen("settings")
+            ToolbarIcon:
+                icon_type: self.icon_type
+                size_hint_y: None
+                height: dp(28)
+            IconLabel:
+                text: "Pengaturan"
 """
 
 
@@ -828,7 +877,7 @@ class POSApp(App):
         grid.clear_widgets()
         for p in self.db.products(search)[:100]:
             btn = Button(
-                text=f"{p['name']}\n{self.money(p['sell_price'])}  Ã¢â‚¬Â¢  Stok {p['stock']:g} {p['unit']}",
+                text=f"{p['name']}\n{self.money(p['sell_price'])}  ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢  Stok {p['stock']:g} {p['unit']}",
                 size_hint_y=None, height=dp(56),
                 background_normal="",
                 background_color=(1, 1, 1, 1),
